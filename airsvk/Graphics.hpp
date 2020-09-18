@@ -1,10 +1,14 @@
 #pragma once
 #include <airs/Window.hpp>
+#include <airs/math.hpp>
 #define VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL 0
+#pragma warning(push, 0)  
 #include <vulkan/vulkan.hpp>
+#pragma warning(pop)  
 #include "Shader.hpp"
 #include "Pipeline.hpp"
 #include "Buffer.hpp"
+#include "BufferView.hpp"
 
 
 
@@ -20,7 +24,6 @@ namespace airsvk
 		vk::PresentModeKHR PresentMode;
 		uint32_t ImageCount;
 		vk::Extent2D Extent;
-		vk::Viewport Viewport;
 
 		vk::PhysicalDevice PhysicalGPU;
 		vk::PhysicalDeviceMemoryProperties GPUMemoryProperties;
@@ -51,27 +54,33 @@ namespace airsvk
 		void InitGPU(const std::vector<std::string>& required_extensions);
 		void InitRenderPass();
 
-		void InitSurfaceExtent(uint32_t w, uint32_t h);
+		void InitSurfaceExtent();
 		void InitSwapchain();
 		void InitImageViews();
 		void InitFrameBuffers();
 		void InitCommandBuffers();
 
+		void Resize();
+
 	public:
 		Graphics() = delete;
 		Graphics(Graphics&&) = delete;
 		Graphics(const Graphics&) = delete;
-		Graphics(const airs::Window& window, std::vector<const char*> layers, vk::Format prefered_format, vk::ColorSpaceKHR prefered_color_space,
-			vk::PresentModeKHR prefered_present_mode, uint32_t prefered_image_count);
+		Graphics(const airs::Window& window, std::vector<const char*> layers = {},
+			vk::Format prefered_format = vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR prefered_color_space = vk::ColorSpaceKHR::eSrgbNonlinear,
+			vk::PresentModeKHR prefered_present_mode = vk::PresentModeKHR::eFifo, uint32_t prefered_image_count = 2);
 		~Graphics();
 
-		airs::delegate<void(vk::CommandBuffer)> CommandBuffer;
-		void Resize(int32_t w, int32_t h);
+		airs::delegate<void(vk::CommandBuffer, airs::vec2ui, std::uint32_t)> CommandBuffer;
+		void UpdateCommandBuffers();
 
-		Shader CreateShader(const std::vector<int8_t>& code) const;
-		Pipeline CreatePipeline(const vk::PipelineLayoutCreateInfo& layout_info, const vk::GraphicsPipelineCreateInfo& info) const;
-		Pipeline CreatePipeline(const vk::PipelineLayoutCreateInfo& layout_info, const vk::ComputePipelineCreateInfo& info) const;
-		Buffer CreateBuffer(size_t size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags required, vk::SharingMode mode = vk::SharingMode::eExclusive);
+		Shader CreateShader(const std::vector<uint8_t>& code) const;
+		Pipeline CreatePipeline(const std::vector<vk::DescriptorSetLayoutBinding>& layout_bindings, const vk::GraphicsPipelineCreateInfo& info) const;
+		Pipeline CreatePipeline(const std::vector<vk::DescriptorSetLayoutBinding>& layout_bindings, const vk::ComputePipelineCreateInfo& info) const;
+		Buffer CreateBuffer(size_t size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags required, vk::SharingMode mode = vk::SharingMode::eExclusive) const;
+
+		vk::CommandBuffer StartCommandBuffer() const;
+		void FinishCommandBuffer(vk::CommandBuffer cmdb) const;
 		
 		void Present();
 	};
