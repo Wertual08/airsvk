@@ -113,6 +113,7 @@ namespace airsvk
         PhysicalGPU = nullptr;
         for (vk::PhysicalDevice device : VulkanInstance.enumeratePhysicalDevices())
         {
+            vk::PhysicalDeviceProperties properties = device.getProperties();
             if (PhysicalGPUSuitable(VulkanSurface, device, required_extensions))
             {
                 if (!PhysicalGPU) PhysicalGPU = device;
@@ -120,7 +121,7 @@ namespace airsvk
                 {
                     vk::PhysicalDeviceProperties properties = device.getProperties();
                     vk::PhysicalDeviceProperties current_properties = PhysicalGPU.getProperties();
-
+                    //PhysicalGPU = device;
                     switch (properties.deviceType)
                     {
                     case vk::PhysicalDeviceType::eIntegratedGpu:
@@ -130,10 +131,7 @@ namespace airsvk
                         }
                         break;
                     case vk::PhysicalDeviceType::eDiscreteGpu:
-                        if (true)
-                        {
                             PhysicalGPU = device;
-                        }
                         break;
                     case vk::PhysicalDeviceType::eVirtualGpu:
                         if (current_properties.deviceType != vk::PhysicalDeviceType::eDiscreteGpu &&
@@ -160,14 +158,14 @@ namespace airsvk
     }
     void Graphics::InitGPU(const std::vector<std::string>& required_extensions)
     {
-        std::vector<vk::QueueFamilyProperties> QueueFamilies = PhysicalGPU.getQueueFamilyProperties();
-        GraphicsQueueFamilyIndex = UINT32_MAX;
-        PresentQueueFamilyIndex = UINT32_MAX;
-        for (uint32_t i = 0; i < QueueFamilies.size(); i++)
+        std::vector<vk::QueueFamilyProperties> queue_families = PhysicalGPU.getQueueFamilyProperties();
+        GraphicsQueueFamilyIndex = std::numeric_limits<uint32_t>::max();
+        PresentQueueFamilyIndex = std::numeric_limits<uint32_t>::max();
+        for (uint32_t i = 0; i < queue_families.size(); i++)
         {
-            if (QueueFamilies[i].queueFlags & vk::QueueFlagBits::eGraphics)
+            if (queue_families[i].queueFlags & vk::QueueFlagBits::eGraphics)
             {
-                if (GraphicsQueueFamilyIndex == UINT32_MAX)
+                if (GraphicsQueueFamilyIndex == std::numeric_limits<uint32_t>::max())
                     GraphicsQueueFamilyIndex = i;
 
                 if (PhysicalGPU.getSurfaceSupportKHR(i, VulkanSurface))
@@ -178,9 +176,9 @@ namespace airsvk
                 }
             }
         }
-        if (PresentQueueFamilyIndex == UINT32_MAX)
+        if (PresentQueueFamilyIndex == std::numeric_limits<uint32_t>::max())
         {
-            for (uint32_t i = 0; i < QueueFamilies.size(); ++i)
+            for (uint32_t i = 0; i < queue_families.size(); ++i)
             {
                 if (PhysicalGPU.getSurfaceSupportKHR(i, VulkanSurface))
                 {
@@ -189,8 +187,10 @@ namespace airsvk
                 }
             }
         }
-        if (GraphicsQueueFamilyIndex == UINT32_MAX || PresentQueueFamilyIndex == UINT32_MAX)
-            throw std::runtime_error("Vulkan initialization error: Could not find both graphics and present queues.");
+        if (GraphicsQueueFamilyIndex == std::numeric_limits<uint32_t>::max())
+            throw std::runtime_error("Vulkan initialization error: Could not find graphics queue.");
+        if (PresentQueueFamilyIndex == std::numeric_limits<uint32_t>::max())
+            throw std::runtime_error("Vulkan initialization error: Could not find present queue.");
 
         std::vector<const char*> SelectedDeviceExtensions(required_extensions.size());
         for (size_t i = 0; i < required_extensions.size(); i++)
@@ -217,14 +217,11 @@ namespace airsvk
             queues[1].setPQueuePriorities(priorities);
             deviceInfo.setQueueCreateInfoCount(2);
         }
-        GPU = PhysicalGPU.createDevice(deviceInfo, nullptr);
+
+        GPU = PhysicalGPU.createDevice(deviceInfo);
 
         GraphicsQueue = GPU.getQueue(GraphicsQueueFamilyIndex, 0);
         PresentQueue = GPU.getQueue(PresentQueueFamilyIndex, 0);
-
-        vk::SemaphoreCreateInfo semaphore_info;
-        ImageAvailableSemaphore = GPU.createSemaphore(semaphore_info);
-        RenderFinishedSemaphore = GPU.createSemaphore(semaphore_info);
 
         auto command_pool_info = vk::CommandPoolCreateInfo()
             .setQueueFamilyIndex(GraphicsQueueFamilyIndex)
@@ -300,8 +297,8 @@ namespace airsvk
             create_info.setPQueueFamilyIndices(QueueFamilyIndices);
         }
 
-        Swapchain = GPU.createSwapchainKHR(create_info);
-        Images = GPU.getSwapchainImagesKHR(Swapchain);
+        VulkanSwapchain = GPU.createSwapchainKHR(create_info);
+        Images = GPU.getSwapchainImagesKHR(VulkanSwapchain);
     }
     void Graphics::InitImageViews()
     {
@@ -326,10 +323,10 @@ namespace airsvk
             ImageViews[i] = GPU.createImageView(info);
         }
     }
-    void Graphics::InitFrameBuffers()
+    void Graphics::InitFramebuffers()
     {
-        Framebuffers.resize(ImageViews.size());
-        for (size_t i = 0; i < ImageViews.size(); i++)
+        Framebuffers.resize(Images.size());
+        for (size_t i = 0; i < Images.size(); i++)
         {
             vk::ImageView attachments[] = {
                 ImageViews[i]
@@ -344,20 +341,34 @@ namespace airsvk
             Framebuffers[i] = GPU.createFramebuffer(framebuffer_info);
         }
     }
+    void Graphics::InitSemaphores()
+    {
+        CurrentSemaphore = 0;
+        ImageAvailableSemaphores.resize(Images.size());
+        RenderFinishedSemaphores.resize(Images.size());
+        for (auto& semaphore : RenderFinishedSemaphores)
+            semaphore = GPU.createSemaphore(vk::SemaphoreCreateInfo());
+        for (auto& semaphore : ImageAvailableSemaphores)
+            semaphore = GPU.createSemaphore(vk::SemaphoreCreateInfo());
+    }
+    void Graphics::InitFences()
+    {
+        CommandFinishedFences.resize(Images.size());
+        for (auto& fence : CommandFinishedFences)
+            fence = GPU.createFence(vk::FenceCreateInfo(vk::FenceCreateFlagBits::eSignaled));
+    }
     void Graphics::InitCommandBuffers()
     {
-        if (Extent.width < 1 || Extent.height < 1) return;
-        if (Framebuffers.size() != CommandBuffers.size())
-        {
-            GPU.freeCommandBuffers(CommandPool, CommandBuffers);
-            vk::CommandBufferAllocateInfo allocate_info(
-                CommandPool, vk::CommandBufferLevel::ePrimary, 
-                static_cast<uint32_t>(Framebuffers.size()));
-            CommandBuffers = GPU.allocateCommandBuffers(allocate_info);
-        }
+        vk::CommandBufferAllocateInfo allocate_info(
+            CommandPool, vk::CommandBufferLevel::ePrimary,
+            static_cast<uint32_t>(Images.size()));
+        CommandBuffers = GPU.allocateCommandBuffers(allocate_info);
+    }
 
+    void Graphics::PerformCommandBuffers()
+    {
         vk::Viewport viewport(
-            0.0f, 
+            0.0f,
             static_cast<float>(Extent.height),
             static_cast<float>(Extent.width),
             -static_cast<float>(Extent.height),
@@ -369,9 +380,11 @@ namespace airsvk
         clear_color.color.float32[2] = 0.0f;
         clear_color.color.float32[3] = 1.0f;
 
-        for (std::uint32_t i = 0; i < CommandBuffers.size(); i++)
+        for (std::uint32_t i = 0; i < Images.size(); i++)
         {
+            GPU.waitForFences(CommandFinishedFences[i], true, std::numeric_limits<std::uint64_t>::max());
             vk::CommandBuffer cmdb = CommandBuffers[i];
+
             auto render_pass_begin_info = vk::RenderPassBeginInfo()
                 .setRenderPass(RenderPass)
                 .setFramebuffer(Framebuffers[i])
@@ -379,38 +392,53 @@ namespace airsvk
                 .setClearValueCount(1)
                 .setPClearValues(&clear_color);
             cmdb.begin(vk::CommandBufferBeginInfo());
-            cmdb.setViewport(0, 1, &viewport);
-            cmdb.setScissor(0, 1, &render_area);
+            cmdb.setViewport(0, viewport);
+            cmdb.setScissor(0, render_area);
             cmdb.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
-            if (CommandBuffer) CommandBuffer(cmdb, { Extent.width, Extent.height }, i);
+            if (Layout) Layout->Perform(cmdb);
 
             cmdb.endRenderPass();
             cmdb.end();
         }
     }
+    void Graphics::ThreadSafePerformCommandBuffers()
+    {
+        std::scoped_lock lock(CommandBufferMutex);
+        PerformCommandBuffers();
+    }
 
     void Graphics::Resize()
     {
+        std::scoped_lock lock(CommandBufferMutex);
+
         InitSurfaceExtent();
         if (Extent.width < 1 || Extent.height < 1) return;
 
-        GPU.waitIdle();
-
+        for (auto fence : CommandFinishedFences)
+            GPU.destroyFence(fence);
+        for (auto semaphore : RenderFinishedSemaphores)
+            GPU.destroySemaphore(semaphore);
+        for (auto semaphore : ImageAvailableSemaphores)
+            GPU.destroySemaphore(semaphore);
+        GPU.freeCommandBuffers(CommandPool, CommandBuffers);
         for (auto framebuffer : Framebuffers)
             GPU.destroyFramebuffer(framebuffer);
         for (auto image_view : ImageViews)
             GPU.destroyImageView(image_view);
-        GPU.destroySwapchainKHR(Swapchain);
+        GPU.destroySwapchainKHR(VulkanSwapchain);
 
         InitSwapchain();
         InitImageViews();
-        InitFrameBuffers();
+        InitFramebuffers();
+        InitSemaphores();
+        InitFences();
         InitCommandBuffers();
+        PerformCommandBuffers();
     }
 
     Graphics::Graphics(const airs::Window& window, std::vector<const char*> layers, vk::Format prefered_format, vk::ColorSpaceKHR prefered_color_space,
-		vk::PresentModeKHR prefered_present_mode, uint32_t prefered_image_count) 
+		vk::PresentModeKHR prefered_present_mode, uint32_t prefered_image_count) : Layout(nullptr)
 	{
         std::vector<const char*> extensions = {
             VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
@@ -420,32 +448,41 @@ namespace airsvk
         InitVulkanInstance(layers, extensions);
         InitSurface(window);
         InitPhysicalGPU({ VK_KHR_SWAPCHAIN_EXTENSION_NAME });
-        InitSurfaceProperties(vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear, vk::PresentModeKHR::eFifo, 2);
+        InitSurfaceProperties(prefered_format, prefered_color_space, prefered_present_mode, prefered_image_count);
         InitGPU({ VK_KHR_SWAPCHAIN_EXTENSION_NAME });
         InitRenderPass();
-        Resize();
+
+        InitSurfaceExtent();
+        InitSwapchain();
+        InitImageViews();
+        InitFramebuffers();
+        InitSemaphores();
+        InitFences();
+        InitCommandBuffers();
+        PerformCommandBuffers();
 	}
     Graphics::~Graphics()
     {
         GPU.waitIdle();
-        GPU.destroySemaphore(ImageAvailableSemaphore);
-        GPU.destroySemaphore(RenderFinishedSemaphore);
+
+        for (auto fence : CommandFinishedFences)
+            GPU.destroyFence(fence);
+        for (auto semaphore : RenderFinishedSemaphores)
+            GPU.destroySemaphore(semaphore);
+        for (auto semaphore : ImageAvailableSemaphores)
+            GPU.destroySemaphore(semaphore);
+        GPU.freeCommandBuffers(CommandPool, CommandBuffers);
         for (auto framebuffer : Framebuffers)
             GPU.destroyFramebuffer(framebuffer);
         for (auto image_view : ImageViews)
             GPU.destroyImageView(image_view);
-        GPU.destroySwapchainKHR(Swapchain);
+        GPU.destroySwapchainKHR(VulkanSwapchain);
+
         GPU.destroyRenderPass(RenderPass);
         GPU.destroyCommandPool(CommandPool);
         GPU.destroy();
         VulkanInstance.destroySurfaceKHR(VulkanSurface);
         VulkanInstance.destroy();
-    }
-
-    void Graphics::UpdateCommandBuffers()
-    {
-        GPU.waitIdle();
-        InitCommandBuffers();
     }
     
     Shader Graphics::CreateShader(const std::vector<uint8_t>& code) const
@@ -460,7 +497,7 @@ namespace airsvk
     {
         return std::move(Pipeline(GPU, layout_bindings, info));
     }
-    Buffer Graphics::CreateBuffer(size_t size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags required, vk::SharingMode mode) const
+    Buffer Graphics::CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags required, vk::SharingMode mode) const
     {
         return Buffer(GPU, GPUMemoryProperties, vk::BufferCreateInfo({}, size, usage, mode), required);
     }
@@ -479,11 +516,24 @@ namespace airsvk
         auto submit_info = vk::SubmitInfo()
             .setCommandBufferCount(1)
             .setPCommandBuffers(&cmdb);
-        GraphicsQueue.submit(1, &submit_info, nullptr);
+        GraphicsQueue.submit(submit_info, nullptr);
         GraphicsQueue.waitIdle();
-        GPU.freeCommandBuffers(CommandPool, 1, &cmdb);
+        GPU.freeCommandBuffers(CommandPool, cmdb);
     }
 
+    void Graphics::SetCommandLayout(CommandLayout& layout)
+    {
+        if (Layout) Layout->Rebuilded.clear();
+        Layout = &layout;
+        Layout->Rebuilded.bind<Graphics, &Graphics::ThreadSafePerformCommandBuffers>(this);
+        ThreadSafePerformCommandBuffers();
+    }
+    void Graphics::ClearCommandLayout()
+    {
+        if (Layout) Layout->Rebuilded.clear();
+        Layout = nullptr;
+        ThreadSafePerformCommandBuffers();
+    }
     void Graphics::Present()
     {
         if (Extent.width < 1 || Extent.height < 1)
@@ -492,60 +542,40 @@ namespace airsvk
             if (Extent.width < 1 || Extent.height < 1) return;
         }
 
-        uint32_t image_index;
-        VkResult image_result = vkAcquireNextImageKHR(static_cast<VkDevice>(GPU),
-            static_cast<VkSwapchainKHR>(Swapchain), 
-            UINT64_MAX, 
-            static_cast<VkSemaphore>(ImageAvailableSemaphore), 
-            VK_NULL_HANDLE, &image_index);
+        vk::ResultValue<uint32_t> image_result = GPU.acquireNextImageKHR(
+            VulkanSwapchain, 
+            std::numeric_limits<std::uint64_t>::max(), 
+            ImageAvailableSemaphores[CurrentSemaphore],
+            nullptr);
 
         std::array<vk::PipelineStageFlags, 1> wait_stages = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
         auto submit_info = vk::SubmitInfo()
             .setWaitSemaphoreCount(1)
-            .setPWaitSemaphores(&ImageAvailableSemaphore)
+            .setPWaitSemaphores(&ImageAvailableSemaphores[CurrentSemaphore])
             .setPWaitDstStageMask(wait_stages.data())
             .setCommandBufferCount(1)
-            .setPCommandBuffers(&CommandBuffers[image_index])
+            .setPCommandBuffers(&CommandBuffers[image_result.value])
             .setSignalSemaphoreCount(1)
-            .setPSignalSemaphores(&RenderFinishedSemaphore);
-        vkQueueWaitIdle(static_cast<VkQueue>(GraphicsQueue));
-        vkQueueSubmit(static_cast<VkQueue>(GraphicsQueue), 1, reinterpret_cast<VkSubmitInfo*>(&submit_info), VK_NULL_HANDLE);
+            .setPSignalSemaphores(&RenderFinishedSemaphores[image_result.value]);
+
+        GPU.waitForFences(CommandFinishedFences[image_result.value], true, std::numeric_limits<std::uint64_t>::max());
+        std::unique_lock lock(CommandBufferMutex); // Where it should be???
+        GPU.resetFences(CommandFinishedFences[image_result.value]);
+        GraphicsQueue.submit(submit_info, CommandFinishedFences[image_result.value]);
+        lock.unlock();
 
         vk::Result result;
         auto present_info = vk::PresentInfoKHR()
             .setWaitSemaphoreCount(1)
-            .setPWaitSemaphores(&RenderFinishedSemaphore)
+            .setPWaitSemaphores(&RenderFinishedSemaphores[image_result.value])
             .setSwapchainCount(1)
-            .setPSwapchains(&Swapchain)
-            .setPImageIndices(&image_index)
+            .setPSwapchains(&VulkanSwapchain)
+            .setPImageIndices(&image_result.value)
             .setPResults(&result);
         VkResult present_result = vkQueuePresentKHR(static_cast<VkQueue>(PresentQueue), reinterpret_cast<VkPresentInfoKHR*>(&present_info));
         if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) Resize();
         else if (present_result != VK_SUCCESS) vk::throwResultException(static_cast<vk::Result>(present_result), VULKAN_HPP_NAMESPACE_STRING"::Queue::presentKHR");
 
-        //auto compound_result = GPU.acquireNextImageKHR(Swapchain, UINT64_MAX, ImageAvailableSemaphore, nullptr);
-        //uint32_t image_index = compound_result.value;
-
-        //std::array<vk::PipelineStageFlags, 1> wait_stages = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
-        //auto submit_info = vk::SubmitInfo()
-        //    .setWaitSemaphoreCount(1)
-        //    .setPWaitSemaphores(&ImageAvailableSemaphore)
-        //    .setPWaitDstStageMask(wait_stages.data())
-        //    .setCommandBufferCount(1)
-        //    .setPCommandBuffers(&CommandBuffers[image_index])
-        //    .setSignalSemaphoreCount(1)
-        //    .setPSignalSemaphores(&RenderFinishedSemaphore);
-        //
-        //GraphicsQueue.waitIdle();
-        //vk::Result result = GraphicsQueue.submit(1, &submit_info, nullptr);
-
-        //auto present_info = vk::PresentInfoKHR()
-        //    .setWaitSemaphoreCount(1)
-        //    .setPWaitSemaphores(&RenderFinishedSemaphore)
-        //    .setSwapchainCount(1)
-        //    .setPSwapchains(&Swapchain)
-        //    .setPImageIndices(&image_index)
-        //    .setPResults(&result);
-        //PresentQueue.presentKHR(present_info);
+        CurrentSemaphore = (CurrentSemaphore + 1) % Images.size();
     }
 }

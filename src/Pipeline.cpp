@@ -14,7 +14,7 @@ namespace airsvk
 			PipelineLayout = GPU.createPipelineLayout(vk::PipelineLayoutCreateInfo({}, 1, &DescriptorSetLayout));
 
 			std::vector<vk::DescriptorPoolSize> sizes;
-			for (auto binding : layout_bindings)
+			for (auto& binding : layout_bindings)
 			{
 				bool found = false;
 				for (auto& size : sizes)
@@ -40,19 +40,22 @@ namespace airsvk
 
 		vk::Viewport viewport;
 		vk::Rect2D scissor;
-		auto viewport_state_info = vk::PipelineViewportStateCreateInfo()
+		auto viewport_state_info = 
+			vk::PipelineViewportStateCreateInfo()
 			.setViewportCount(1)
 			.setPViewports(&viewport)
 			.setScissorCount(1)
 			.setPScissors(&scissor);
 
-		VulkanPipeline = GPU.createGraphicsPipeline(nullptr, info.setLayout(PipelineLayout).setRenderPass(render_pass).setPViewportState(&viewport_state_info));
+		info.setLayout(PipelineLayout).setRenderPass(render_pass).setPViewportState(&viewport_state_info);
+		VulkanPipeline = GPU.createGraphicsPipeline(nullptr, info);
 	}
 	Pipeline::Pipeline(vk::Device gpu, const std::vector<vk::DescriptorSetLayoutBinding>& layout_bindings, vk::ComputePipelineCreateInfo info) :
 		GPU(gpu), DescriptorSetLayout(nullptr), PipelineLayout(nullptr), DescriptorPool(nullptr), DescriptorSet(nullptr), 
 		VulkanPipeline(nullptr), BindPoint(vk::PipelineBindPoint::eCompute)
 	{
-		DescriptorSetLayout = GPU.createDescriptorSetLayout(vk::DescriptorSetLayoutCreateInfo({}, static_cast<uint32_t>(layout_bindings.size()), layout_bindings.data()));
+		DescriptorSetLayout = GPU.createDescriptorSetLayout(
+			vk::DescriptorSetLayoutCreateInfo({}, static_cast<uint32_t>(layout_bindings.size()), layout_bindings.data()));
 		
 		PipelineLayout = GPU.createPipelineLayout(vk::PipelineLayoutCreateInfo({}, 1, &DescriptorSetLayout));
 
@@ -87,7 +90,6 @@ namespace airsvk
 	{
 		if (GPU)
 		{
-			GPU.waitIdle();
 			if (VulkanPipeline) GPU.destroyPipeline(VulkanPipeline);
 			if (DescriptorPool) GPU.destroyDescriptorPool(DescriptorPool);
 			if (PipelineLayout) GPU.destroyPipelineLayout(PipelineLayout);

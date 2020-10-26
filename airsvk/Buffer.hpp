@@ -13,16 +13,15 @@ namespace airsvk
 	{
 		friend class Graphics;
 	private:
-		//vk::BufferCreateInfo CreateInfo;
-		vk::SharingMode SharingMode;
-
 		vk::Device GPU;
+		vk::BufferCreateInfo CreateInfo;
 		vk::Buffer VulkanBuffer;
 		uint32_t MemoryType;
 		vk::DeviceSize MemorySize;
 		vk::DeviceMemory Memory;
 
 		Buffer(vk::Device gpu, const vk::PhysicalDeviceMemoryProperties& properties, const vk::BufferCreateInfo& info, vk::MemoryPropertyFlags required);
+		Buffer(vk::Device gpu, std::uint32_t memory_type, const vk::BufferCreateInfo& info);
 
 	public:
 		Buffer() noexcept;
@@ -30,12 +29,14 @@ namespace airsvk
 		Buffer(Buffer&& buffer) noexcept;
 		~Buffer();
 
+		void Swap(Buffer& buffer) noexcept;
+
 		operator vk::Buffer() const { return VulkanBuffer; }
 		operator const vk::Buffer*() const { return &VulkanBuffer; }
 
-		//void Resize(std::size_t size);
+		Buffer Recreate(vk::DeviceSize size);
 
-		vk::DeviceSize Size() const { return MemorySize; }
+		vk::DeviceSize Size() const { return CreateInfo.size; }
 
 		void* Map(vk::DeviceSize offset, vk::DeviceSize size) { return GPU.mapMemory(Memory, offset, size); }
 		void* Map() { return GPU.mapMemory(Memory, 0, MemorySize); }

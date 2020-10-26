@@ -19,20 +19,25 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="airsvk\Command.hpp" />
     <ClInclude Include="airsvk\Buffer.hpp" />
     <ClInclude Include="airsvk\BufferView.hpp" />
+    <ClInclude Include="airsvk\Descriptor.hpp" />
     <ClInclude Include="airsvk\DescriptorPool.hpp" />
     <ClInclude Include="airsvk\Charset.hpp" />
+    <ClInclude Include="airsvk\DescriptorSet.hpp" />
     <ClInclude Include="airsvk\Graphics.hpp" />
+    <ClInclude Include="airsvk\CommandLayout.hpp" />
     <ClInclude Include="airsvk\Pipeline.hpp" />
     <ClInclude Include="airsvk\RenderPass.hpp" />
     <ClInclude Include="airsvk\Shader.hpp" />
     <ClInclude Include="airsvk\utils.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="airsvk\Charset.cpp" />
+    <ClCompile Include="airsvk\CommandLayout.cpp" />
     <ClCompile Include="src\Buffer.cpp" />
     <ClCompile Include="src\BufferView.cpp" />
+    <ClCompile Include="src\Charset.cpp" />
     <ClCompile Include="src\DescriptorPool.cpp" />
     <ClCompile Include="src\Graphics.cpp" />
     <ClCompile Include="src\Pipeline.cpp" />
@@ -92,31 +97,35 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)AIRS ALPHA\;$(ProjectDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)AIRS\;$(ProjectDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)lib\$(PlatformTarget);$(SolutionDir)airs\$(PlatformTarget)\$(Configuration);$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\</OutDir>
     <TargetName>airsvk</TargetName>
+    <IntDir>obj\$(PlatformTarget)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)AIRS ALPHA\;$(ProjectDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)AIRS\;$(ProjectDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)lib\$(PlatformTarget);$(SolutionDir)airs\$(PlatformTarget)\$(Configuration);$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\</OutDir>
     <TargetName>airsvk</TargetName>
+    <IntDir>obj\$(PlatformTarget)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)AIRS ALPHA\;$(ProjectDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)AIRS\;$(ProjectDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)lib\$(PlatformTarget);$(SolutionDir)airs\$(PlatformTarget)\$(Configuration);$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\</OutDir>
     <TargetName>airsvk</TargetName>
+    <IntDir>obj\$(PlatformTarget)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>$(ProjectDir)include;$(SolutionDir)AIRS ALPHA\;$(ProjectDir);$(IncludePath)</IncludePath>
+    <IncludePath>$(ProjectDir)include;$(SolutionDir)AIRS\;$(ProjectDir);$(IncludePath)</IncludePath>
     <LibraryPath>$(ProjectDir)lib\$(PlatformTarget);$(SolutionDir)airs\$(PlatformTarget)\$(Configuration);$(LibraryPath)</LibraryPath>
     <OutDir>$(SolutionDir)lib\$(PlatformTarget)\$(Configuration)\</OutDir>
     <TargetName>airsvk</TargetName>
+    <IntDir>obj\$(PlatformTarget)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

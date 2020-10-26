@@ -15,9 +15,20 @@ namespace airsvk
 	Buffer::Buffer(vk::Device gpu, const vk::PhysicalDeviceMemoryProperties& properties, const vk::BufferCreateInfo& info, vk::MemoryPropertyFlags required) : 
 		GPU(gpu)
 	{
+		CreateInfo = info;
 		VulkanBuffer = GPU.createBuffer(info);
 		vk::MemoryRequirements requirements = GPU.getBufferMemoryRequirements(VulkanBuffer);
 		MemoryType = FindMemoryType(properties, requirements.memoryTypeBits, required);
+		MemorySize = requirements.size;
+		Memory = GPU.allocateMemory(vk::MemoryAllocateInfo(MemorySize, MemoryType));
+		GPU.bindBufferMemory(VulkanBuffer, Memory, 0);
+	}
+	Buffer::Buffer(vk::Device gpu, std::uint32_t memory_type, const vk::BufferCreateInfo& info) : GPU(gpu)
+	{
+		CreateInfo = info;
+		VulkanBuffer = GPU.createBuffer(info);
+		MemoryType = memory_type;
+		vk::MemoryRequirements requirements = GPU.getBufferMemoryRequirements(VulkanBuffer);
 		MemorySize = requirements.size;
 		Memory = GPU.allocateMemory(vk::MemoryAllocateInfo(MemorySize, MemoryType));
 		GPU.bindBufferMemory(VulkanBuffer, Memory, 0);
@@ -28,26 +39,17 @@ namespace airsvk
 	}
 	Buffer& Buffer::operator=(Buffer&& buffer) noexcept
 	{
-		std::swap(GPU, buffer.GPU);
-		std::swap(VulkanBuffer, buffer.VulkanBuffer);
-		std::swap(MemoryType, buffer.MemoryType);
-		std::swap(MemorySize, buffer.MemorySize);
-		std::swap(Memory, buffer.Memory);
+		Swap(buffer);
 		return *this;
 	}
 	Buffer::Buffer(Buffer&& buffer) noexcept : GPU(nullptr), VulkanBuffer(nullptr), Memory(nullptr)
 	{
-		std::swap(GPU, buffer.GPU);
-		std::swap(VulkanBuffer, buffer.VulkanBuffer);
-		std::swap(MemoryType, buffer.MemoryType);
-		std::swap(MemorySize, buffer.MemorySize);
-		std::swap(Memory, buffer.Memory);
+		Swap(buffer);
 	}
 	Buffer::~Buffer()
 	{
 		if (GPU)
 		{
-			GPU.waitIdle();
 			if (VulkanBuffer) GPU.destroyBuffer(VulkanBuffer);
 			if (Memory) GPU.freeMemory(Memory);
 		}
@@ -56,15 +58,24 @@ namespace airsvk
 		Memory = nullptr;
 	}
 
-	//void Buffer::Resize(std::size_t size)
-	//{
-	//	VulkanBuffer = GPU.createBuffer(info);
-	//	vk::MemoryRequirements requirements = GPU.getBufferMemoryRequirements(VulkanBuffer);
-	//	MemoryType = FindMemoryType(properties, requirements.memoryTypeBits, required);
-	//	MemorySize = requirements.size;
-	//	Memory = GPU.allocateMemory(vk::MemoryAllocateInfo(MemorySize, MemoryType));
-	//	GPU.bindBufferMemory(VulkanBuffer, Memory, 0);
-	//}
+	void Buffer::Swap(Buffer& buffer) noexcept
+	{
+		std::swap(GPU, buffer.GPU);
+		std::swap(CreateInfo, buffer.CreateInfo);
+		std::swap(VulkanBuffer, buffer.VulkanBuffer);
+		std::swap(MemoryType, buffer.MemoryType);
+		std::swap(MemorySize, buffer.MemorySize);
+		std::swap(Memory, buffer.Memory);
+	}
+
+	Buffer Buffer::Recreate(vk::DeviceSize size)
+	{
+		auto new_info = CreateInfo;
+		new_info.size = size;
+		Buffer new_buffer(GPU, MemoryType, new_info);
+		Swap(new_buffer);
+		return new_buffer;
+	}
 	
 	BufferView Buffer::CreateView(vk::Format format, vk::DeviceSize offset, vk::DeviceSize range)
 	{

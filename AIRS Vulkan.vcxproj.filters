@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\Descriptors">
+      <UniqueIdentifier>{354f1784-7302-42e5-9908-298ee7789aec}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Commands">
+      <UniqueIdentifier>{7e1c6243-eac4-42e9-a31a-7779b0ab5b87}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="airsvk\Buffer.hpp">
@@ -42,6 +48,18 @@
     <ClInclude Include="airsvk\Charset.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="airsvk\DescriptorSet.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="airsvk\Descriptor.hpp">
+      <Filter>Header Files\Descriptors</Filter>
+    </ClInclude>
+    <ClInclude Include="airsvk\Command.hpp">
+      <Filter>Header Files\Commands</Filter>
+    </ClInclude>
+    <ClInclude Include="airsvk\CommandLayout.hpp">
+      <Filter>Header Files\Commands</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\Buffer.cpp">
@@ -62,7 +80,10 @@
     <ClCompile Include="src\BufferView.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="airsvk\Charset.cpp">
+    <ClCompile Include="src\Charset.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="airsvk\CommandLayout.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
