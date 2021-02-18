@@ -365,52 +365,10 @@ namespace airsvk
         CommandBuffers = GPU.allocateCommandBuffers(allocate_info);
     }
 
-    void Graphics::PerformCommandBuffers()
-    {
-        vk::Viewport viewport(
-            0.0f,
-            static_cast<float>(Extent.height),
-            static_cast<float>(Extent.width),
-            -static_cast<float>(Extent.height),
-            0.0f, 1.0f);
-        vk::Rect2D render_area({ 0, 0 }, Extent);
-        vk::ClearValue clear_color;
-        clear_color.color.float32[0] = 0.0f;
-        clear_color.color.float32[1] = 0.0f;
-        clear_color.color.float32[2] = 0.0f;
-        clear_color.color.float32[3] = 1.0f;
-
-        for (std::uint32_t i = 0; i < Images.size(); i++)
-        {
-            GPU.waitForFences(CommandFinishedFences[i], true, std::numeric_limits<std::uint64_t>::max());
-            vk::CommandBuffer cmdb = CommandBuffers[i];
-
-            auto render_pass_begin_info = vk::RenderPassBeginInfo()
-                .setRenderPass(RenderPass)
-                .setFramebuffer(Framebuffers[i])
-                .setRenderArea(render_area)
-                .setClearValueCount(1)
-                .setPClearValues(&clear_color);
-            cmdb.begin(vk::CommandBufferBeginInfo());
-            cmdb.setViewport(0, viewport);
-            cmdb.setScissor(0, render_area);
-            cmdb.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
-
-            if (Layout) Layout->Perform(cmdb);
-
-            cmdb.endRenderPass();
-            cmdb.end();
-        }
-    }
-    void Graphics::ThreadSafePerformCommandBuffers()
-    {
-        std::scoped_lock lock(CommandBufferMutex);
-        PerformCommandBuffers();
-    }
-
     void Graphics::Resize()
     {
         std::scoped_lock lock(CommandBufferMutex);
+        GPU.waitForFences(CommandFinishedFences, true, std::numeric_limits<std::uint64_t>::max());
 
         InitSurfaceExtent();
         if (Extent.width < 1 || Extent.height < 1) return;
@@ -465,6 +423,7 @@ namespace airsvk
     {
         GPU.waitIdle();
 
+        GPU.waitForFences(CommandFinishedFences, true, std::numeric_limits<std::uint64_t>::max());
         for (auto fence : CommandFinishedFences)
             GPU.destroyFence(fence);
         for (auto semaphore : RenderFinishedSemaphores)
@@ -484,22 +443,25 @@ namespace airsvk
         VulkanInstance.destroySurfaceKHR(VulkanSurface);
         VulkanInstance.destroy();
     }
-    
-    Shader Graphics::CreateShader(const std::vector<uint8_t>& code) const
+
+    vk::Device Graphics::GetGPU()
     {
-        return std::move(Shader(GPU, vk::ShaderModuleCreateInfo({}, code.size(), reinterpret_cast<const uint32_t*>(code.data()))));
+        return GPU;
     }
-    Pipeline Graphics::CreatePipeline(const std::vector<vk::DescriptorSetLayoutBinding>& layout_bindings, const vk::GraphicsPipelineCreateInfo& info) const
+    const vk::PhysicalDeviceMemoryProperties &Graphics::GetGPUMemoryProperties() const
     {
-        return std::move(Pipeline(GPU, RenderPass, layout_bindings, info));
+        return GPUMemoryProperties;
     }
-    Pipeline Graphics::CreatePipeline(const std::vector<vk::DescriptorSetLayoutBinding>& layout_bindings, const vk::ComputePipelineCreateInfo& info) const
+    vk::RenderPass Graphics::GetRenderPass()
     {
-        return std::move(Pipeline(GPU, layout_bindings, info));
+        return RenderPass;
     }
-    Buffer Graphics::CreateBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags required, vk::SharingMode mode) const
+
+    std::uint32_t Graphics::FindMemoryType(std::uint32_t typeFilter, vk::MemoryPropertyFlags properties) const
     {
-        return Buffer(GPU, GPUMemoryProperties, vk::BufferCreateInfo({}, size, usage, mode), required);
+        for (std::uint32_t i = 0; i < GPUMemoryProperties.memoryTypeCount; i++)
+            if ((typeFilter & (1 << i)) && (GPUMemoryProperties.memoryTypes[i].propertyFlags & properties) == properties) return i;
+        throw std::runtime_error("airs::VulkanBuffer error: Failed to find suitable device memory type.");
     }
 
     vk::CommandBuffer Graphics::StartCommandBuffer() const
@@ -521,19 +483,69 @@ namespace airsvk
         GPU.freeCommandBuffers(CommandPool, cmdb);
     }
 
+    void Graphics::PerformCommandBuffers()
+    {
+        vk::Viewport viewport(
+            0.0f,
+            static_cast<float>(Extent.height),
+            static_cast<float>(Extent.width),
+            -static_cast<float>(Extent.height),
+            0.0f, 1.0f);
+        vk::Rect2D render_area({ 0, 0 }, Extent);
+        vk::ClearValue clear_color;
+        clear_color.color.float32[0] = 0.0f;
+        clear_color.color.float32[1] = 0.0f;
+        clear_color.color.float32[2] = 0.0f;
+        clear_color.color.float32[3] = 1.0f;
+
+        GPU.waitForFences(CommandFinishedFences, true, std::numeric_limits<std::uint64_t>::max());
+        for (std::uint32_t i = 0; i < Images.size(); i++)
+        {
+            vk::CommandBuffer cmdb = CommandBuffers[i];
+
+            auto render_pass_begin_info = vk::RenderPassBeginInfo()
+                .setRenderPass(RenderPass)
+                .setFramebuffer(Framebuffers[i])
+                .setRenderArea(render_area)
+                .setClearValueCount(1)
+                .setPClearValues(&clear_color);
+            cmdb.begin(vk::CommandBufferBeginInfo());
+            cmdb.setViewport(0, viewport);
+            cmdb.setScissor(0, render_area);
+            cmdb.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
+
+            if (Layout) Layout->Perform(cmdb, { Extent.width, Extent.height });
+
+            cmdb.endRenderPass();
+            cmdb.end();
+        }
+    }
+    void Graphics::ThreadSafePerformCommandBuffers()
+    {
+        std::scoped_lock lock(CommandBufferMutex);
+        PerformCommandBuffers();
+    }
+    std::unique_lock<std::mutex> Graphics::LockCommandBuffers()
+    {
+        std::unique_lock<std::mutex> lock(CommandBufferMutex);
+        GPU.waitForFences(CommandFinishedFences, true, std::numeric_limits<std::uint64_t>::max());
+        return std::move(lock);
+    }
+
     void Graphics::SetCommandLayout(CommandLayout& layout)
     {
-        if (Layout) Layout->Rebuilded.clear();
+        if (Layout) Layout->Owner = nullptr;
         Layout = &layout;
-        Layout->Rebuilded.bind<Graphics, &Graphics::ThreadSafePerformCommandBuffers>(this);
+        Layout->Owner = this;
         ThreadSafePerformCommandBuffers();
     }
     void Graphics::ClearCommandLayout()
     {
-        if (Layout) Layout->Rebuilded.clear();
+        if (Layout) Layout->Owner = nullptr;
         Layout = nullptr;
         ThreadSafePerformCommandBuffers();
     }
+
     void Graphics::Present()
     {
         if (Extent.width < 1 || Extent.height < 1)

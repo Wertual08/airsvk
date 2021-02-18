@@ -1,7 +1,8 @@
 #include <airs/Font.hpp>
 #include <unordered_map>
 #include <array>
-#include "Graphics.hpp"
+#include "Buffer.hpp"
+#include "BufferView.hpp"
 
 
 
@@ -14,17 +15,16 @@ namespace airsvk
 	
 	class Charset
 	{
-		friend class Graphics;
 	private:
-		const Graphics& OwnerGraphics;
-		const airs::Font& Font;
+		Graphics &OwnerGraphics;
+		const airs::Font &Font;
 		//Pipeline* Pipeline;
 		//Buffer UniformBuffer;
 		Buffer TexelBuffer;
 		BufferView TexelBufferView;
 
-		static constexpr std::size_t BasicFirst = 0;
-		static constexpr std::size_t BasicLast = 255;
+		static constexpr char32_t BasicFirst = 0;
+		static constexpr char32_t BasicLast = 255;
 		const bool GrayScale;
 		std::array<Glyph, BasicLast - BasicFirst + 1> BasicGlyphs;
 		std::unordered_map<char32_t, Glyph> AdditionalGlyphs;
@@ -32,10 +32,10 @@ namespace airsvk
 		void InitBuffer(std::size_t size);
 		void InitBasicGlyphs();
 
-		Charset(const Graphics& graphics, const airs::Font& font, bool gray);
+		Charset(Graphics &graphics, const airs::Font &font, bool gray);
 
 	public:
 
-		const Glyph& operator[](char32_t i);
+		const Glyph &operator[](char32_t i);
 	};
 }

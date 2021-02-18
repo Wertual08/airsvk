@@ -1,13 +1,11 @@
 #pragma once
-#define VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL 0
-#pragma warning(push, 0)  
-#include <vulkan/vulkan.hpp>
-#pragma warning(pop)  
+#include "airs_vulkan.hpp"
 
 
 
 namespace airsvk
 {
+	class Graphics;
 	class Pipeline
 	{
 		friend class Graphics;
@@ -21,13 +19,13 @@ namespace airsvk
 		vk::Pipeline VulkanPipeline;
 		vk::PipelineBindPoint BindPoint;
 
-		Pipeline(vk::Device gpu, vk::RenderPass render_pass, const std::vector<vk::DescriptorSetLayoutBinding>& layout_bindings, vk::GraphicsPipelineCreateInfo info);
-		Pipeline(vk::Device gpu, const std::vector<vk::DescriptorSetLayoutBinding>& layout_bindings, vk::ComputePipelineCreateInfo info);
 
 	public:
 		Pipeline() noexcept;
 		Pipeline& operator=(Pipeline&& pipeline) noexcept;
 		Pipeline(Pipeline&& vp) noexcept;
+		Pipeline(Graphics &gfx, const std::vector<vk::DescriptorSetLayoutBinding>& layout_bindings, vk::GraphicsPipelineCreateInfo info);
+		Pipeline(Graphics &gfx, const std::vector<vk::DescriptorSetLayoutBinding>& layout_bindings, vk::ComputePipelineCreateInfo info);
 		~Pipeline();
 
 		operator vk::Pipeline() const noexcept { return VulkanPipeline; }

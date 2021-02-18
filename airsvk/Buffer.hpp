@@ -1,17 +1,14 @@
 #pragma once
-#define VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL 0
-#pragma warning(push, 0)  
-#include <vulkan/vulkan.hpp>
-#pragma warning(pop)  
+#include "airs_vulkan.hpp"
 #include "BufferView.hpp"
 
 
 
 namespace airsvk
 {
+	class Graphics;
 	class Buffer
 	{
-		friend class Graphics;
 	private:
 		vk::Device GPU;
 		vk::BufferCreateInfo CreateInfo;
@@ -20,13 +17,14 @@ namespace airsvk
 		vk::DeviceSize MemorySize;
 		vk::DeviceMemory Memory;
 
-		Buffer(vk::Device gpu, const vk::PhysicalDeviceMemoryProperties& properties, const vk::BufferCreateInfo& info, vk::MemoryPropertyFlags required);
 		Buffer(vk::Device gpu, std::uint32_t memory_type, const vk::BufferCreateInfo& info);
 
 	public:
 		Buffer() noexcept;
 		Buffer& operator=(Buffer&& buffer) noexcept;
 		Buffer(Buffer&& buffer) noexcept;
+		Buffer(Graphics &gfx, vk::DeviceSize size, vk::BufferUsageFlags usage, 
+			vk::MemoryPropertyFlags required, vk::SharingMode mode = vk::SharingMode::eExclusive);
 		~Buffer();
 
 		void Swap(Buffer& buffer) noexcept;

@@ -1,5 +1,5 @@
 #pragma once
-#include <vulkan/vulkan.hpp>
+#include "airs_vulkan.hpp"
 #include <airs/math.hpp>
 #include <type_traits>
 #include <array>
@@ -102,8 +102,8 @@ namespace airsvk
         {
             static VertexCreateInfo instance;
             return vk::PipelineVertexInputStateCreateInfo({},
-                instance.binding_descriptions.size(), instance.binding_descriptions.data(),
-                instance.attribute_descriptions.size(), instance.attribute_descriptions.data()
+                static_cast<std::uint32_t>(instance.binding_descriptions.size()), instance.binding_descriptions.data(),
+                static_cast<std::uint32_t>(instance.attribute_descriptions.size()), instance.attribute_descriptions.data()
             );
         }
 

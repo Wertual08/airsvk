@@ -1,67 +1,10 @@
 #include "airsvk/Pipeline.hpp"
+#include "airsvk/Graphics.hpp"
 
 
 
 namespace airsvk
 {
-	Pipeline::Pipeline(vk::Device gpu, vk::RenderPass render_pass, const std::vector<vk::DescriptorSetLayoutBinding>& layout_bindings, vk::GraphicsPipelineCreateInfo info) :
-		GPU(gpu), DescriptorSetLayout(nullptr), PipelineLayout(nullptr), DescriptorPool(nullptr), DescriptorSet(nullptr), VulkanPipeline(nullptr), BindPoint(vk::PipelineBindPoint::eGraphics)
-	{
-		if (layout_bindings.size() > 0)
-		{
-			DescriptorSetLayout = GPU.createDescriptorSetLayout(vk::DescriptorSetLayoutCreateInfo({}, static_cast<uint32_t>(layout_bindings.size()), layout_bindings.data()));
-
-			PipelineLayout = GPU.createPipelineLayout(vk::PipelineLayoutCreateInfo({}, 1, &DescriptorSetLayout));
-
-			std::vector<vk::DescriptorPoolSize> sizes;
-			for (auto& binding : layout_bindings)
-			{
-				bool found = false;
-				for (auto& size : sizes)
-				{
-					if (size.type == binding.descriptorType)
-					{
-						size.descriptorCount += binding.descriptorCount;
-						found = true;
-						break;
-					}
-				}
-				if (!found) sizes.push_back(vk::DescriptorPoolSize(binding.descriptorType, binding.descriptorCount));
-			}
-			DescriptorPool = GPU.createDescriptorPool(vk::DescriptorPoolCreateInfo({}, 1, static_cast<uint32_t>(sizes.size()), sizes.data()));
-
-			auto set_info = vk::DescriptorSetAllocateInfo()
-				.setDescriptorPool(DescriptorPool)
-				.setDescriptorSetCount(1)
-				.setPSetLayouts(&DescriptorSetLayout);
-			GPU.allocateDescriptorSets(&set_info, &DescriptorSet);
-		}
-		else PipelineLayout = GPU.createPipelineLayout(vk::PipelineLayoutCreateInfo());
-
-		vk::Viewport viewport;
-		vk::Rect2D scissor;
-		auto viewport_state_info = 
-			vk::PipelineViewportStateCreateInfo()
-			.setViewportCount(1)
-			.setPViewports(&viewport)
-			.setScissorCount(1)
-			.setPScissors(&scissor);
-
-		info.setLayout(PipelineLayout).setRenderPass(render_pass).setPViewportState(&viewport_state_info);
-		VulkanPipeline = GPU.createGraphicsPipeline(nullptr, info);
-	}
-	Pipeline::Pipeline(vk::Device gpu, const std::vector<vk::DescriptorSetLayoutBinding>& layout_bindings, vk::ComputePipelineCreateInfo info) :
-		GPU(gpu), DescriptorSetLayout(nullptr), PipelineLayout(nullptr), DescriptorPool(nullptr), DescriptorSet(nullptr), 
-		VulkanPipeline(nullptr), BindPoint(vk::PipelineBindPoint::eCompute)
-	{
-		DescriptorSetLayout = GPU.createDescriptorSetLayout(
-			vk::DescriptorSetLayoutCreateInfo({}, static_cast<uint32_t>(layout_bindings.size()), layout_bindings.data()));
-		
-		PipelineLayout = GPU.createPipelineLayout(vk::PipelineLayoutCreateInfo({}, 1, &DescriptorSetLayout));
-
-		VulkanPipeline = GPU.createComputePipeline(nullptr, info.setLayout(PipelineLayout));
-	}
-
 	Pipeline::Pipeline() noexcept : GPU(nullptr), DescriptorSetLayout(nullptr), PipelineLayout(nullptr), DescriptorPool(nullptr), DescriptorSet(nullptr), VulkanPipeline(nullptr), BindPoint()
 	{
 	}
@@ -85,6 +28,64 @@ namespace airsvk
 		std::swap(DescriptorSet, vp.DescriptorSet);
 		std::swap(VulkanPipeline, vp.VulkanPipeline);
 		std::swap(BindPoint, vp.BindPoint);
+	}
+	Pipeline::Pipeline(Graphics &gfx, const std::vector<vk::DescriptorSetLayoutBinding> &layout_bindings, vk::GraphicsPipelineCreateInfo info) :
+		GPU(gfx.GetGPU()), DescriptorSetLayout(nullptr), PipelineLayout(nullptr), DescriptorPool(nullptr), DescriptorSet(nullptr), 
+		VulkanPipeline(nullptr), BindPoint(vk::PipelineBindPoint::eGraphics)
+	{
+		if (layout_bindings.size() > 0)
+		{
+			DescriptorSetLayout = GPU.createDescriptorSetLayout(vk::DescriptorSetLayoutCreateInfo({}, static_cast<uint32_t>(layout_bindings.size()), layout_bindings.data()));
+
+			PipelineLayout = GPU.createPipelineLayout(vk::PipelineLayoutCreateInfo({}, 1, &DescriptorSetLayout));
+
+			std::vector<vk::DescriptorPoolSize> sizes;
+			for (auto &binding : layout_bindings)
+			{
+				bool found = false;
+				for (auto &size : sizes)
+				{
+					if (size.type == binding.descriptorType)
+					{
+						size.descriptorCount += binding.descriptorCount;
+						found = true;
+						break;
+					}
+				}
+				if (!found) sizes.push_back(vk::DescriptorPoolSize(binding.descriptorType, binding.descriptorCount));
+			}
+			DescriptorPool = GPU.createDescriptorPool(vk::DescriptorPoolCreateInfo({}, 1, static_cast<uint32_t>(sizes.size()), sizes.data()));
+
+			auto set_info = vk::DescriptorSetAllocateInfo()
+				.setDescriptorPool(DescriptorPool)
+				.setDescriptorSetCount(1)
+				.setPSetLayouts(&DescriptorSetLayout);
+			GPU.allocateDescriptorSets(&set_info, &DescriptorSet);
+		}
+		else PipelineLayout = GPU.createPipelineLayout(vk::PipelineLayoutCreateInfo());
+
+		vk::Viewport viewport;
+		vk::Rect2D scissor;
+		auto viewport_state_info =
+			vk::PipelineViewportStateCreateInfo()
+			.setViewportCount(1)
+			.setPViewports(&viewport)
+			.setScissorCount(1)
+			.setPScissors(&scissor);
+
+		info.setLayout(PipelineLayout).setRenderPass(gfx.GetRenderPass()).setPViewportState(&viewport_state_info);
+		VulkanPipeline = GPU.createGraphicsPipeline(nullptr, info);
+	}
+	Pipeline::Pipeline(Graphics &gfx, const std::vector<vk::DescriptorSetLayoutBinding> &layout_bindings, vk::ComputePipelineCreateInfo info) :
+		GPU(gfx.GetGPU()), DescriptorSetLayout(nullptr), PipelineLayout(nullptr), DescriptorPool(nullptr), DescriptorSet(nullptr),
+		VulkanPipeline(nullptr), BindPoint(vk::PipelineBindPoint::eCompute)
+	{
+		DescriptorSetLayout = GPU.createDescriptorSetLayout(
+			vk::DescriptorSetLayoutCreateInfo({}, static_cast<uint32_t>(layout_bindings.size()), layout_bindings.data()));
+
+		PipelineLayout = GPU.createPipelineLayout(vk::PipelineLayoutCreateInfo({}, 1, &DescriptorSetLayout));
+
+		VulkanPipeline = GPU.createComputePipeline(nullptr, info.setLayout(PipelineLayout));
 	}
 	Pipeline::~Pipeline()
 	{

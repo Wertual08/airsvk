@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="airsvk\airs_vulkan.hpp" />
     <ClInclude Include="airsvk\Command.hpp" />
     <ClInclude Include="airsvk\Buffer.hpp" />
     <ClInclude Include="airsvk\BufferView.hpp" />

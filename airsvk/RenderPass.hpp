@@ -1,9 +1,6 @@
 #pragma once
-#define VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL 0
-#pragma warning(push, 0)  
-#include <vulkan/vulkan.hpp>
-#pragma warning(pop)  
 #include <airs/math.hpp>
+#include "airs_vulkan.hpp"
 
 
 

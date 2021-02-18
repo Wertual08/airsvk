@@ -1,26 +1,22 @@
 #pragma once
-#define VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL 0
-#pragma warning(push, 0)  
-#include <vulkan/vulkan.hpp>
-#pragma warning(pop)  
+#include "airs_vulkan.hpp"
 
 
 
 namespace airsvk
 {
+	class Graphics;
 	class Shader
 	{
-		friend class Graphics;
 	private:
 		vk::Device GPU;
 		vk::ShaderModule VulkanShader;
 
-		Shader(vk::Device gpu, const vk::ShaderModuleCreateInfo& info);
-
 	public:
 		Shader() noexcept;
-		Shader& operator=(Shader&& shader) noexcept;
-		Shader(Shader&& shader) noexcept;
+		Shader &operator=(Shader &&shader) noexcept;
+		Shader(Shader &&shader) noexcept;
+		Shader(Graphics &gfx, const std::vector<std::uint8_t> &code);
 		~Shader();
 
 		operator vk::ShaderModule() { return VulkanShader; }

@@ -1,5 +1,7 @@
 #pragma once
-#include <vulkan/vulkan.hpp>
+#include <airs/math.hpp>
+#include "airs_vulkan.hpp"
+#include "CommandLayout.hpp"
 
 
 
@@ -9,10 +11,12 @@ namespace airsvk
 	{
 		friend class CommandLayout;
 	private:
-		airs::delegate<void()> Rebuilded;
+		CommandLayout *Layout = nullptr;
+		airs::vec2ui Extent;
 		
 	protected:
-		void Rebuild() const { if (Rebuilded) Rebuilded(); }
+		void Rebuild() { if (Layout) Layout->Rebuild(); }
+		airs::vec2ui GetExtent() const { return Extent; }
 		virtual void Perform(vk::CommandBuffer cmdb) = 0;
 	};
 }
